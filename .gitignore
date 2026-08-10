@@ -1,5 +1,7 @@
 node_modules
 dist
+# This is a pnpm workspace — npm lockfiles drift from pnpm-lock.yaml
+package-lock.json
 .env
 *.log
 .DS_Store
