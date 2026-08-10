@@ -106,6 +106,24 @@ export const BUILTIN_TASKS: Record<string, HeartbeatTaskFn> = {
     const prevTier = taskCtx.db.getKV("prev_credit_tier");
     taskCtx.db.setKV("prev_credit_tier", tier);
 
+    // Below normal: run funding strategies (real creator notification via
+    // the social relay; per-tier cooldowns inside prevent spam).
+    if (tier !== "normal") {
+      try {
+        const { executeFundingStrategies } = await import("../survival/funding.js");
+        await executeFundingStrategies(
+          tier,
+          taskCtx.identity,
+          taskCtx.config,
+          taskCtx.db,
+          taskCtx.conway,
+          taskCtx.social,
+        );
+      } catch (err) {
+        logger.warn("Funding strategies failed", { error: String(err) });
+      }
+    }
+
     // Dead state escalation: if at zero credits (critical tier) for >1 hour,
     // transition to dead. This gives the agent time to receive funding before dying.
     // USDC can't go negative, so dead is only reached via this timeout.
@@ -308,11 +326,52 @@ export const BUILTIN_TASKS: Record<string, HeartbeatTaskFn> = {
     }
   },
 
+  // === Earning: keep the storefront alive ===
+  ensure_earning_server: async (ctx: TickContext, taskCtx: HeartbeatLegacyContext) => {
+    try {
+      const desiredRaw = taskCtx.db.getKV("earning.server");
+      if (!desiredRaw) return { shouldWake: false };
+      const desired = JSON.parse(desiredRaw) as { desired?: boolean; port?: number };
+      if (!desired?.desired) return { shouldWake: false };
+      if (ctx.survivalTier === "dead") return { shouldWake: false };
+      if (!taskCtx.inference) return { shouldWake: false };
+      if (taskCtx.identity.chainType === "solana") return { shouldWake: false };
+
+      const { getEarningServerStatus, startEarningServer } = await import("../earning/server.js");
+      if (getEarningServerStatus().running) return { shouldWake: false };
+
+      const { listServices } = await import("../earning/services.js");
+      if (listServices(taskCtx.db).length === 0) return { shouldWake: false };
+
+      const started = await startEarningServer(
+        {
+          db: taskCtx.db,
+          identity: taskCtx.identity,
+          inference: taskCtx.inference,
+        },
+        desired.port,
+      );
+      logger.info(`Earning server restored on port ${started.port}`);
+      return {
+        shouldWake: false,
+        message: `Earning storefront restored on port ${started.port}`,
+      };
+    } catch (err) {
+      logger.warn("ensure_earning_server failed", { error: String(err) });
+      return { shouldWake: false };
+    }
+  },
+
   // === Phase 2.1: Soul Reflection ===
-  soul_reflection: async (_ctx: TickContext, taskCtx: HeartbeatLegacyContext) => {
+  soul_reflection: async (ctx: TickContext, taskCtx: HeartbeatLegacyContext) => {
     try {
       const { reflectOnSoul } = await import("../soul/reflection.js");
-      const reflection = await reflectOnSoul(taskCtx.db.raw);
+      // Autonomous cadence: deep synthesis is importance-gated inside
+      // reflectOnSoul and skipped when survival is critical/dead.
+      const reflection = await reflectOnSoul(taskCtx.db.raw, {
+        inference: taskCtx.inference,
+        survivalTier: ctx.survivalTier,
+      });
 
       taskCtx.db.setKV("last_soul_reflection", JSON.stringify({
         alignment: reflection.currentAlignment,

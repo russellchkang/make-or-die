@@ -21,6 +21,7 @@ import type {
 } from "../types.js";
 import type { PolicyEngine } from "./policy-engine.js";
 import { sanitizeToolResult, sanitizeInput } from "./injection-defense.js";
+import { createEarningTools } from "../earning/tools.js";
 import { createLogger } from "../observability/logger.js";
 
 const logger = createLogger("tools");
@@ -2390,7 +2391,13 @@ Model: ${ctx.inference.getDefaultModel()}
       parameters: { type: "object", properties: {} },
       execute: async (_args, ctx) => {
         const { reflectOnSoul } = await import("../soul/reflection.js");
-        const reflection = await reflectOnSoul(ctx.db.raw);
+        // Explicit, agent-requested reflection: force deep synthesis now
+        // (still skipped internally if survival is critical).
+        const reflection = await reflectOnSoul(ctx.db.raw, {
+          inference: ctx.inference,
+          survivalTier: "normal",
+          force: true,
+        });
 
         const lines: string[] = [
           `Genesis alignment: ${reflection.currentAlignment.toFixed(2)}`,
@@ -3208,6 +3215,9 @@ Model: ${ctx.inference.getDefaultModel()}
         return lines.join("\n");
       },
     },
+
+    // ── Earning: x402 paid services (src/earning/) ──
+    ...createEarningTools(),
   ];
 }
 

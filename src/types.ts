@@ -252,7 +252,8 @@ export type TransactionType =
   | "tool_use"
   | "transfer_in"
   | "transfer_out"
-  | "funding_request";
+  | "funding_request"
+  | "earning";
 
 // ─── Self-Modification ───────────────────────────────────────────
 
@@ -901,6 +902,7 @@ export interface HeartbeatLegacyContext {
   db: AutomatonDatabase;
   conway: ConwayClient;
   social?: SocialClientInterface;
+  inference?: InferenceClient;
 }
 
 export interface HeartbeatScheduleRow {

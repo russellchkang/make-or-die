@@ -658,6 +658,28 @@ export const MIGRATION_V11 = `
   ALTER TABLE children ADD COLUMN chain_type TEXT DEFAULT 'evm';
 `;
 
+export const MIGRATION_V12 = `
+  -- Schema version: 12
+  -- Tables: earnings (x402 paid-service revenue)
+  -- The UNIQUE nonce is the replay-protection backstop: each EIP-3009
+  -- authorization can be accepted at most once, even if the on-chain
+  -- settlement layer is mocked or delayed.
+
+  CREATE TABLE earnings (
+    id TEXT PRIMARY KEY,                    -- ULID
+    service TEXT NOT NULL,                  -- paid service name
+    payer TEXT NOT NULL,                    -- buyer wallet address
+    amount_atomic TEXT NOT NULL,            -- USDC atomic units (6 decimals)
+    amount_cents INTEGER NOT NULL,          -- convenience: USD cents
+    tx_hash TEXT,                           -- settlement transaction hash
+    nonce TEXT NOT NULL UNIQUE,             -- EIP-3009 authorization nonce
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX idx_earnings_created_at ON earnings(created_at);
+  CREATE INDEX idx_earnings_payer ON earnings(payer);
+`;
+
 export const MIGRATION_V10 = `
   -- Schema version: 10
   -- Tables: knowledge_store
