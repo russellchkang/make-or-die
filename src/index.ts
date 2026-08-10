@@ -377,6 +377,7 @@ async function run(): Promise<void> {
     rawDb: db.raw,
     conway,
     social,
+    inference,
     onWakeRequest: (reason) => {
       logger.info(`[HEARTBEAT] Wake request: ${reason}`);
       // Phase 1.1: Use wake_events table instead of KV wake_request
