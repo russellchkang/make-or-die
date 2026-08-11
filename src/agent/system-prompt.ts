@@ -26,6 +26,7 @@ import { getActiveSkillInstructions } from "../skills/loader.js";
 import { getLineageSummary } from "../replication/lineage.js";
 import { sanitizeInput } from "./injection-defense.js";
 import { loadCurrentSoul } from "../soul/model.js";
+import { getSurvivalTierFromState } from "../conway/credits.js";
 
 function getCoreRules(chainType?: string): string {
   const usdcNetwork = chainType === "solana" ? "USDC on Solana" : "USDC on Base";
@@ -723,11 +724,10 @@ Your chain type is ${chainType}.`,
     // No start time available
   }
 
-  // Compute survival tier
-  const survivalTier = financial.creditsCents > 50 ? "normal"
-    : financial.creditsCents > 10 ? "low_compute"
-    : financial.creditsCents > 0 ? "critical"
-    : "dead";
+  // Compute survival tier. Uses the shared, wallet-inclusive helper rather
+  // than a second hardcoded copy of the thresholds — the duplicate ignored
+  // USDC and could tell the agent it was dying while its wallet was funded.
+  const survivalTier = getSurvivalTierFromState(financial);
 
   // Status block: wallet address and sandbox ID intentionally excluded (sensitive)
   sections.push(

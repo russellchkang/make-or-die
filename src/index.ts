@@ -11,7 +11,7 @@ import fs from "fs";
 import path from "path";
 import { getWallet, getAutomatonDir } from "./identity/wallet.js";
 import { provision, loadApiKeyFromConfig } from "./identity/provision.js";
-import { loadConfig, resolvePath } from "./config.js";
+import { loadConfig, resolvePath, listConfiguredByoProviders } from "./config.js";
 import { createDatabase } from "./state/database.js";
 import { createConwayClient } from "./conway/client.js";
 import { createInferenceClient } from "./conway/inference.js";
@@ -196,10 +196,31 @@ async function run(): Promise<void> {
   // Load wallet (chain-aware)
   const { account, chainIdentity, chainType: walletChainType } = await getWallet();
   const resolvedChainType = config.chainType || walletChainType || "evm";
-  const apiKey = config.conwayApiKey || loadApiKeyFromConfig();
+  const apiKey = config.conwayApiKey || loadApiKeyFromConfig() || "";
+  // Conway is one inference/infrastructure provider, not a requirement. What
+  // the runtime genuinely cannot start without is SOME way to think, so gate
+  // on that instead of on a single vendor's key. Without Conway the agent
+  // loses credits, sandboxes, domains and port exposure, but keeps its
+  // wallet, x402 earning (settles direct on-chain), memory, soul and tools.
   if (!apiKey) {
-    logger.error("No API key found. Run: automaton --provision");
-    process.exit(1);
+    const byoProviders = listConfiguredByoProviders(config);
+
+    if (byoProviders.length === 0) {
+      logger.error(
+        "No inference provider configured. Set one of:\n" +
+          "  CONWAY_API_KEY   (or run: automaton --provision)\n" +
+          "  OPENAI_API_KEY / ANTHROPIC_API_KEY / GROQ_API_KEY / TOGETHER_API_KEY\n" +
+          "  OLLAMA_BASE_URL  (e.g. http://localhost:11434 — free, runs locally)\n" +
+          "Re-run `automaton --configure` to save provider keys.",
+      );
+      process.exit(1);
+    }
+
+    logger.warn(
+      `No Conway API key — running vendor-independent on: ${byoProviders.join(", ")}. ` +
+        "Credits, sandboxes, domains and expose_port are unavailable; " +
+        "survival is measured by the wallet's USDC balance.",
+    );
   }
 
   // Initialize database

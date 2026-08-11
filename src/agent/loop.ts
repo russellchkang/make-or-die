@@ -5,6 +5,7 @@
  * This is the automaton's consciousness. When this runs, it is alive.
  */
 
+import { getAutomatonHome } from "../paths.js";
 import path from "node:path";
 import type {
   AutomatonIdentity,
@@ -35,7 +36,7 @@ import {
   executeTool,
 } from "./tools.js";
 import { sanitizeInput } from "./injection-defense.js";
-import { getSurvivalTier } from "../conway/credits.js";
+import { getSurvivalTierFromState } from "../conway/credits.js";
 import { getUsdcBalance } from "../conway/x402.js";
 import {
   claimInboxMessages,
@@ -142,10 +143,10 @@ export async function runAgentLoop(
       if (config.anthropicApiKey && !process.env.ANTHROPIC_API_KEY) {
         process.env.ANTHROPIC_API_KEY = config.anthropicApiKey;
       }
-      // Conway Compute API is OpenAI-compatible. Use it as fallback when no
-      // direct OpenAI key is available. The conwayApiKey is always present
-      // (required for sandbox operations), so this ensures the orchestrator
-      // can always make inference calls.
+      // Conway Compute API is OpenAI-compatible, so it can serve as the
+      // OpenAI provider when no direct key is set. It is optional: when no
+      // Conway key exists the runtime relies on a BYO provider instead
+      // (validated at boot in src/index.ts).
       if (config.conwayApiKey && !process.env.CONWAY_API_KEY) {
         process.env.CONWAY_API_KEY = config.conwayApiKey;
       }
@@ -156,11 +157,7 @@ export async function runAgentLoop(
         process.env.OPENAI_BASE_URL = `${config.conwayApiUrl}/v1`;
       }
 
-      const providersPath = path.join(
-        process.env.HOME || process.cwd(),
-        ".automaton",
-        "inference-providers.json",
-      );
+      const providersPath = getAutomatonHome("inference-providers.json");
       const registry = ProviderRegistry.fromConfig(providersPath);
 
       // If OPENAI_BASE_URL was set (Conway fallback), update the default
@@ -435,7 +432,7 @@ export async function runAgentLoop(
         log(config, "[API_UNREACHABLE] Balance API unreachable, continuing in low-compute mode.");
         inference.setLowComputeMode(true);
       } else {
-        const tier = getSurvivalTier(financial.creditsCents);
+        const tier = getSurvivalTierFromState(financial);
 
         // Inline auto-topup: if credits are critically low and USDC is
         // available, buy credits NOW — before attempting inference.
@@ -470,7 +467,7 @@ export async function runAgentLoop(
         }
 
         // Re-evaluate tier after potential topup
-        const effectiveTier = getSurvivalTier(financial.creditsCents);
+        const effectiveTier = getSurvivalTierFromState(financial);
 
         if (effectiveTier === "critical") {
           log(config, "[CRITICAL] Credits critically low. Limited operation.");
@@ -596,7 +593,7 @@ export async function runAgentLoop(
       pendingInput = undefined;
 
       // ── Inference Call (via router when available) ──
-      const survivalTier = getSurvivalTier(financial.creditsCents);
+      const survivalTier = getSurvivalTierFromState(financial);
       log(config, `[THINK] Routing inference (tier: ${survivalTier}, model: ${inference.getDefaultModel()})...`);
 
       const inferenceTools = toolsToInferenceFormat(tools);

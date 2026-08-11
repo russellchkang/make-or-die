@@ -13,7 +13,7 @@ import type {
   HeartbeatConfig,
   TickContext,
 } from "../types.js";
-import { getSurvivalTier } from "../conway/credits.js";
+import { getSurvivalTierFromState } from "../conway/credits.js";
 import { getUsdcBalance } from "../conway/x402.js";
 import { createLogger } from "../observability/logger.js";
 
@@ -65,7 +65,12 @@ export async function buildTickContext(
     }
   }
 
-  const survivalTier = getSurvivalTier(creditBalance);
+  // Wallet-inclusive: a funded wallet is not a starving agent, and this is
+  // what keeps the tier correct when Conway credits are absent/unreachable.
+  const survivalTier = getSurvivalTierFromState({
+    creditsCents: creditBalance,
+    usdcBalance,
+  });
   const lowComputeMultiplier = config.lowComputeMultiplier ?? 4;
 
   return {

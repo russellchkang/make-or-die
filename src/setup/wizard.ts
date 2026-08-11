@@ -50,6 +50,7 @@ export async function runSetupWizard(): Promise<AutomatonConfig> {
     ? "  [2/6] Provisioning Conway API key (SIWS)..."
     : "  [2/6] Provisioning Conway API key (SIWE)...";
   console.log(chalk.cyan(provisionLabel));
+  console.log(chalk.dim("  Conway is optional — you can also bring your own inference provider (step 3).\n"));
   let apiKey = "";
   try {
     const result = await provision(undefined, walletChainType === "solana" ? chainIdentity : undefined);
@@ -57,7 +58,8 @@ export async function runSetupWizard(): Promise<AutomatonConfig> {
     console.log(chalk.green(`  API key provisioned: ${result.keyPrefix}...\n`));
   } catch (err: any) {
     console.log(chalk.yellow(`  Auto-provision failed: ${err.message}`));
-    console.log(chalk.yellow("  You can enter a key manually, or press Enter to skip.\n"));
+    console.log(chalk.yellow("  This is fine — Conway is optional. Enter a key if you have one,"));
+    console.log(chalk.yellow("  or press Enter to skip and run on your own provider (OpenAI/Anthropic/Ollama).\n"));
     const manual = await promptOptional("Conway API key (cnwy_k_..., optional)");
     if (manual) {
       apiKey = manual;
@@ -76,7 +78,10 @@ export async function runSetupWizard(): Promise<AutomatonConfig> {
   }
 
   if (!apiKey) {
-    console.log(chalk.yellow("  No API key set. The automaton will have limited functionality.\n"));
+    console.log(chalk.yellow("  No Conway key set — running vendor-independent."));
+    console.log(chalk.dim("  Unavailable: credits, sandboxes, domains, expose_port."));
+    console.log(chalk.dim("  Still works: wallet, x402 earning (settles on-chain), memory, soul, tools."));
+    console.log(chalk.dim("  Set an inference provider below, or the runtime will refuse to start.\n"));
   }
 
   // ─── 3. Interactive questions ─────────────────────────────────

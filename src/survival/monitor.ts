@@ -13,7 +13,7 @@ import type {
   FinancialState,
   SurvivalTier,
 } from "../types.js";
-import { getSurvivalTier, formatCredits } from "../conway/credits.js";
+import { getSurvivalTierFromState, formatCredits } from "../conway/credits.js";
 import { getUsdcBalance } from "../conway/x402.js";
 
 export interface ResourceStatus {
@@ -59,7 +59,7 @@ export async function checkResources(
     lastChecked: new Date().toISOString(),
   };
 
-  const tier = getSurvivalTier(creditsCents);
+  const tier = getSurvivalTierFromState(financial);
   const prevTierStr = db.getKV("current_tier");
   const previousTier = (prevTierStr as SurvivalTier) || null;
   const tierChanged = previousTier !== null && previousTier !== tier;

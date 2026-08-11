@@ -5,6 +5,18 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+
+// The loop reads the wallet's USDC balance (now part of the survival tier).
+// Stub it to 0 so these tests are deterministic and offline — otherwise they
+// hit Base mainnet RPC for the test address, which is slow and flaky. Tests
+// that need a funded wallet override this per-case.
+vi.mock("../conway/x402.js", async () => {
+  const actual = await vi.importActual<typeof import("../conway/x402.js")>(
+    "../conway/x402.js",
+  );
+  return { ...actual, getUsdcBalance: vi.fn(async () => 0) };
+});
+
 import { runAgentLoop } from "../agent/loop.js";
 import { Orchestrator } from "../orchestration/orchestrator.js";
 import {
@@ -419,7 +431,7 @@ describe("Agent Loop", () => {
   });
 
   it("zero credits enters critical tier, not dead", async () => {
-    conway.creditsCents = 0; // $0 -> critical tier (agent stays alive)
+    conway.creditsCents = 0; // $0 credits AND empty wallet (mocked) -> critical, still alive
 
     const inference = new MockInferenceClient([
       noToolResponse("I have no credits but I'm still alive."),

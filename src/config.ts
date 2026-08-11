@@ -160,3 +160,20 @@ export function createConfig(params: {
     chainType: params.chainType || "evm",
   };
 }
+
+/**
+ * List the bring-your-own inference providers configured via config or env.
+ * The boot gate uses this: an automaton can run without a Conway key as long
+ * as at least one of these can serve inference.
+ */
+export function listConfiguredByoProviders(
+  config: Pick<AutomatonConfig, "openaiApiKey" | "anthropicApiKey" | "ollamaBaseUrl">,
+): string[] {
+  return [
+    config.openaiApiKey || process.env.OPENAI_API_KEY ? "OpenAI" : null,
+    config.anthropicApiKey || process.env.ANTHROPIC_API_KEY ? "Anthropic" : null,
+    process.env.GROQ_API_KEY ? "Groq" : null,
+    process.env.TOGETHER_API_KEY ? "Together" : null,
+    config.ollamaBaseUrl || process.env.OLLAMA_BASE_URL ? "Ollama" : null,
+  ].filter((p): p is string => p !== null);
+}
