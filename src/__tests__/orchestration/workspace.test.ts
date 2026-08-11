@@ -170,14 +170,24 @@ describe("orchestration/workspace", () => {
     expect(file?.summary).toBe("x".repeat(100));
   });
 
-  it("createWorkspace uses homedir-based default path", () => {
+  it("createWorkspace uses the resolved automaton home for its default path", () => {
     const fakeHome = fs.mkdtempSync(path.join(os.tmpdir(), "workspace-home-"));
     tmpRoots.push(fakeHome);
 
-    vi.spyOn(os, "homedir").mockReturnValue(fakeHome);
-
-    const ws = createWorkspace("goal-create");
-    expect(ws.basePath).toBe(path.join(fakeHome, ".automaton", "workspace", "goal-create"));
-    expect(fs.existsSync(path.join(fakeHome, ".automaton", "workspace", "goal-create", "outputs"))).toBe(true);
+    // Redirect via AUTOMATON_HOME rather than by mocking os.homedir(): the
+    // env var is the documented override (see src/paths.ts), and a spy on a
+    // node builtin does not reach the copy imported by paths.ts — which is
+    // how this test previously escaped its temp dir and wrote a real
+    // ~/.automaton/workspace on the machine running it.
+    const original = process.env.AUTOMATON_HOME;
+    process.env.AUTOMATON_HOME = fakeHome;
+    try {
+      const ws = createWorkspace("goal-create");
+      expect(ws.basePath).toBe(path.join(fakeHome, ".automaton", "workspace", "goal-create"));
+      expect(fs.existsSync(path.join(fakeHome, ".automaton", "workspace", "goal-create", "outputs"))).toBe(true);
+    } finally {
+      if (original === undefined) delete process.env.AUTOMATON_HOME;
+      else process.env.AUTOMATON_HOME = original;
+    }
   });
 });

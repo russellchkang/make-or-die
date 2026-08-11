@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { getAutomatonHome } from "../paths.js";
 
 const CHARS_PER_TOKEN = 3.5;
 const SUMMARY_SNIPPET_LENGTH = 100;
@@ -42,7 +43,10 @@ export class AgentWorkspace implements AgentWorkspace {
 
     this.goalId = normalizedGoalId;
     this.basePath = path.resolve(
-      basePath ?? path.join(os.homedir(), ".automaton", "workspace", normalizedGoalId),
+      // getAutomatonHome() honours $HOME, unlike os.homedir() which reads
+      // USERPROFILE on Windows and would write into the real user profile
+      // even when a caller (or test) has redirected HOME.
+      basePath ?? getAutomatonHome("workspace", normalizedGoalId),
     );
 
     this.outputsPath = path.join(this.basePath, "outputs");

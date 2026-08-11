@@ -6,13 +6,14 @@
  * The automaton's entire identity history is version-controlled and replayable.
  */
 
+import { getHomeDir } from "../paths.js";
 import type { ConwayClient, AutomatonDatabase } from "../types.js";
 import { gitInit, gitCommit, gitStatus, gitLog } from "./tools.js";
 
 const AUTOMATON_DIR = "~/.automaton";
 
 function resolveHome(p: string): string {
-  const home = process.env.HOME || "/root";
+  const home = getHomeDir();
   if (p.startsWith("~")) {
     return `${home}${p.slice(1)}`;
   }

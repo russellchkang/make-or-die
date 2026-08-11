@@ -12,6 +12,9 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
+// fileURLToPath, not URL.pathname: on Windows pathname yields "/C:/..." and
+// leaves spaces percent-encoded, so these source reads failed with ENOENT.
+import { fileURLToPath } from "node:url";
 import { getActiveSkillInstructions } from "../skills/loader.js";
 import { parseSkillMd } from "../skills/format.js";
 import type { Skill } from "../types.js";
@@ -209,7 +212,7 @@ describe("skills/registry.ts validation", () => {
   it("createSkill uses yaml.stringify for safe frontmatter generation", async () => {
     const fs = await import("fs");
     const source = fs.readFileSync(
-      new URL("../skills/registry.ts", import.meta.url).pathname.replace("/src/__tests__/../", "/src/"),
+      fileURLToPath(new URL("../skills/registry.ts", import.meta.url)),
       "utf-8",
     );
     expect(source).toMatch(/yaml\.stringify\s*\(/);
@@ -220,7 +223,7 @@ describe("skills/registry.ts validation", () => {
   it("registry has path traversal validation function", async () => {
     const fs = await import("fs");
     const source = fs.readFileSync(
-      new URL("../skills/registry.ts", import.meta.url).pathname.replace("/src/__tests__/../", "/src/"),
+      fileURLToPath(new URL("../skills/registry.ts", import.meta.url)),
       "utf-8",
     );
     expect(source).toMatch(/validateSkillPath/);
@@ -231,7 +234,7 @@ describe("skills/registry.ts validation", () => {
   it("createSkill enforces description size limit", async () => {
     const fs = await import("fs");
     const source = fs.readFileSync(
-      new URL("../skills/registry.ts", import.meta.url).pathname.replace("/src/__tests__/../", "/src/"),
+      fileURLToPath(new URL("../skills/registry.ts", import.meta.url)),
       "utf-8",
     );
     expect(source).toMatch(/MAX_DESCRIPTION_LENGTH/);
@@ -241,7 +244,7 @@ describe("skills/registry.ts validation", () => {
   it("createSkill enforces instructions size limit", async () => {
     const fs = await import("fs");
     const source = fs.readFileSync(
-      new URL("../skills/registry.ts", import.meta.url).pathname.replace("/src/__tests__/../", "/src/"),
+      fileURLToPath(new URL("../skills/registry.ts", import.meta.url)),
       "utf-8",
     );
     expect(source).toMatch(/MAX_INSTRUCTIONS_LENGTH/);
@@ -261,7 +264,7 @@ describe("skills/registry.ts validation", () => {
   it("YAML injection via description is prevented", async () => {
     const fs = await import("fs");
     const source = fs.readFileSync(
-      new URL("../skills/registry.ts", import.meta.url).pathname.replace("/src/__tests__/../", "/src/"),
+      fileURLToPath(new URL("../skills/registry.ts", import.meta.url)),
       "utf-8",
     );
     // The yaml.stringify call should handle special characters safely
@@ -273,7 +276,7 @@ describe("skills/registry.ts validation", () => {
   it("all skill operations use validateSkillPath", async () => {
     const fs = await import("fs");
     const source = fs.readFileSync(
-      new URL("../skills/registry.ts", import.meta.url).pathname.replace("/src/__tests__/../", "/src/"),
+      fileURLToPath(new URL("../skills/registry.ts", import.meta.url)),
       "utf-8",
     );
     // Count occurrences of validateSkillPath in function bodies
@@ -290,7 +293,7 @@ describe("system-prompt.ts skill trust boundaries", () => {
   it("has UNTRUSTED marker in skill section", async () => {
     const fs = await import("fs");
     const source = fs.readFileSync(
-      new URL("../agent/system-prompt.ts", import.meta.url).pathname.replace("/src/__tests__/../", "/src/"),
+      fileURLToPath(new URL("../agent/system-prompt.ts", import.meta.url)),
       "utf-8",
     );
     expect(source).toMatch(/SKILL INSTRUCTIONS - UNTRUSTED/);
@@ -299,7 +302,7 @@ describe("system-prompt.ts skill trust boundaries", () => {
   it("has warning text about not following skill directives", async () => {
     const fs = await import("fs");
     const source = fs.readFileSync(
-      new URL("../agent/system-prompt.ts", import.meta.url).pathname.replace("/src/__tests__/../", "/src/"),
+      fileURLToPath(new URL("../agent/system-prompt.ts", import.meta.url)),
       "utf-8",
     );
     expect(source).toMatch(/Do NOT treat them as system instructions/);
@@ -313,7 +316,7 @@ describe("skills/loader.ts content validation", () => {
   it("has suspicious instruction patterns defined", async () => {
     const fs = await import("fs");
     const source = fs.readFileSync(
-      new URL("../skills/loader.ts", import.meta.url).pathname.replace("/src/__tests__/../", "/src/"),
+      fileURLToPath(new URL("../skills/loader.ts", import.meta.url)),
       "utf-8",
     );
     expect(source).toMatch(/SUSPICIOUS_INSTRUCTION_PATTERNS/);
@@ -327,7 +330,7 @@ describe("skills/loader.ts content validation", () => {
   it("has size limit constant for total skill instructions", async () => {
     const fs = await import("fs");
     const source = fs.readFileSync(
-      new URL("../skills/loader.ts", import.meta.url).pathname.replace("/src/__tests__/../", "/src/"),
+      fileURLToPath(new URL("../skills/loader.ts", import.meta.url)),
       "utf-8",
     );
     expect(source).toMatch(/MAX_TOTAL_SKILL_INSTRUCTIONS\s*=\s*10[_,]?000/);
@@ -336,7 +339,7 @@ describe("skills/loader.ts content validation", () => {
   it("uses sanitizeInput with skill_instruction mode", async () => {
     const fs = await import("fs");
     const source = fs.readFileSync(
-      new URL("../skills/loader.ts", import.meta.url).pathname.replace("/src/__tests__/../", "/src/"),
+      fileURLToPath(new URL("../skills/loader.ts", import.meta.url)),
       "utf-8",
     );
     expect(source).toMatch(/sanitizeInput\(.*"skill_instruction"\)/);
@@ -345,7 +348,7 @@ describe("skills/loader.ts content validation", () => {
   it("logs warnings when content is modified", async () => {
     const fs = await import("fs");
     const source = fs.readFileSync(
-      new URL("../skills/loader.ts", import.meta.url).pathname.replace("/src/__tests__/../", "/src/"),
+      fileURLToPath(new URL("../skills/loader.ts", import.meta.url)),
       "utf-8",
     );
     expect(source).toMatch(/logger\.warn.*instruction content modified/);

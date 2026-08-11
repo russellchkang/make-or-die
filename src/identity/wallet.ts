@@ -7,6 +7,7 @@
  * Chain type is chosen at genesis and never changes.
  */
 
+import { getHomeDir } from "../paths.js";
 import type { PrivateKeyAccount } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import nacl from "tweetnacl";
@@ -42,7 +43,7 @@ function createSolanaStubAccount(solanaAddress: string): PrivateKeyAccount {
 }
 
 const AUTOMATON_DIR = path.join(
-  process.env.HOME || "/root",
+  getHomeDir(),
   ".automaton",
 );
 const WALLET_FILE = path.join(AUTOMATON_DIR, "wallet.json");

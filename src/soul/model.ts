@@ -5,6 +5,7 @@
  * Phase 2.1: Soul System Redesign
  */
 
+import { getHomeDir } from "../paths.js";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
@@ -337,7 +338,7 @@ export function loadCurrentSoul(
   soulPath?: string,
 ): SoulModel | null {
   try {
-    const home = process.env.HOME || "/root";
+    const home = getHomeDir();
     const resolvedPath = soulPath || path.join(home, ".automaton", "SOUL.md");
     if (!fs.existsSync(resolvedPath)) return null;
     const content = fs.readFileSync(resolvedPath, "utf-8");

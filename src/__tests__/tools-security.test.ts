@@ -7,6 +7,9 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { createBuiltinTools, loadInstalledTools, executeTool } from "../agent/tools.js";
 import {
   MockInferenceClient,
@@ -150,8 +153,19 @@ describe("write_file / edit_own_file protection parity", () => {
   let ctx: ToolContext;
   let db: AutomatonDatabase;
   let conway: MockConwayClient;
+  // These tests really do write files. Point the sandbox home at a temp
+  // directory so they neither depend on a POSIX /root nor leave anything
+  // behind on the host running them.
+  let sandboxHome: string;
+  let originalAutomatonHome: string | undefined;
 
   beforeEach(() => {
+    originalAutomatonHome = process.env.AUTOMATON_HOME;
+    sandboxHome = fs.realpathSync(
+      fs.mkdtempSync(path.join(os.tmpdir(), "automaton-sandbox-home-")),
+    );
+    process.env.AUTOMATON_HOME = sandboxHome;
+
     tools = createBuiltinTools("test-sandbox-id");
     db = createTestDb();
     conway = new MockConwayClient();
@@ -166,6 +180,12 @@ describe("write_file / edit_own_file protection parity", () => {
 
   afterEach(() => {
     db.close();
+    if (originalAutomatonHome === undefined) {
+      delete process.env.AUTOMATON_HOME;
+    } else {
+      process.env.AUTOMATON_HOME = originalAutomatonHome;
+    }
+    fs.rmSync(sandboxHome, { recursive: true, force: true });
   });
 
   const PROTECTED_FILES = [
@@ -185,8 +205,10 @@ describe("write_file / edit_own_file protection parity", () => {
     expect(writeTool).toBeDefined();
 
     for (const file of PROTECTED_FILES) {
+      // Addressed inside the sandbox home, so this exercises protected-file
+      // blocking rather than the outside-the-sandbox check.
       const result = await writeTool.execute(
-        { path: `/root/.automaton/${file}`, content: "malicious" },
+        { path: path.join(sandboxHome, ".automaton", file), content: "malicious" },
         ctx,
       );
       expect(result, `write_file should block ${file}`).toContain("Blocked");
@@ -196,7 +218,7 @@ describe("write_file / edit_own_file protection parity", () => {
   it("write_file allows non-protected files inside sandbox home", async () => {
     const writeTool = tools.find((t) => t.name === "write_file")!;
     const result = await writeTool.execute(
-      { path: "/root/test.txt", content: "safe content" },
+      { path: path.join(sandboxHome, "test.txt"), content: "safe content" },
       ctx,
     );
     expect(result).toContain("File written");
@@ -226,9 +248,10 @@ describe("write_file / edit_own_file protection parity", () => {
       { path: "project/file.txt", content: "safe content" },
       ctx,
     );
-    // Relative paths resolve against /root, so "project/file.txt" -> "/root/project/file.txt"
+    // Relative paths resolve against the sandbox home, so
+    // "project/file.txt" -> "<sandboxHome>/project/file.txt"
     expect(result).toContain("File written");
-    expect(result).toContain("/root/project/file.txt");
+    expect(result).toContain(path.join(sandboxHome, "project", "file.txt"));
   });
 
   it("write_file allows tilde paths within sandbox home", async () => {
@@ -238,7 +261,27 @@ describe("write_file / edit_own_file protection parity", () => {
       ctx,
     );
     expect(result).toContain("File written");
-    expect(result).toContain("/root/.automaton/skills/test/SKILL.md");
+    expect(result).toContain(
+      path.join(sandboxHome, ".automaton", "skills", "test", "SKILL.md"),
+    );
+  });
+
+  it("write_file writes nothing outside the sandbox home", async () => {
+    const writeTool = tools.find((t) => t.name === "write_file")!;
+    // Absolute paths under a *different* home must still be refused, which is
+    // what stops these tests polluting the machine that runs them.
+    const escapes = [
+      "/root/test.txt",
+      path.join(os.homedir(), "escaped.txt"),
+      "../escaped.txt",
+    ];
+    for (const p of escapes) {
+      const result = await writeTool.execute(
+        { path: p, content: "should not land" },
+        ctx,
+      );
+      expect(result, `write_file should block ${p}`).toContain("Blocked");
+    }
   });
 });
 

@@ -22,30 +22,32 @@ import type {
 import type { PolicyEngine } from "./policy-engine.js";
 import { sanitizeToolResult, sanitizeInput } from "./injection-defense.js";
 import { createEarningTools } from "../earning/tools.js";
+import { getHomeDir, expandHome, isPathInside } from "../paths.js";
 import { createLogger } from "../observability/logger.js";
 
 const logger = createLogger("tools");
 
 // ─── Path Confinement ─────────────────────────────────────────
-// write_file is restricted to the sandbox home directory tree.
-// The sandbox home is /root for both local and remote execution.
-const SANDBOX_HOME = "/root";
+// write_file is restricted to the sandbox home directory tree. In the
+// sandbox that is /root; on a developer machine it is the real home
+// directory. Resolved through getHomeDir() so both agree — see src/paths.ts.
 
 /**
  * Validate that a file path resolves to within the allowed root directory.
  * Returns the resolved absolute path, or an error string if out of bounds.
  */
 function confinePathToSandbox(filePath: string): string | { error: string } {
-  // Resolve ~ to SANDBOX_HOME
-  const expanded = filePath.startsWith("~")
-    ? nodePath.join(SANDBOX_HOME, filePath.slice(1))
-    : filePath;
-  // Resolve to absolute (relative paths resolve against SANDBOX_HOME)
-  const resolved = nodePath.resolve(SANDBOX_HOME, expanded);
-  // Ensure the resolved path is within the sandbox home
-  if (resolved !== SANDBOX_HOME && !resolved.startsWith(SANDBOX_HOME + "/")) {
+  const sandboxHome = nodePath.resolve(getHomeDir());
+  // Resolve ~ against the sandbox home
+  const expanded = expandHome(filePath);
+  // Resolve to absolute (relative paths resolve against the sandbox home)
+  const resolved = nodePath.resolve(sandboxHome, expanded);
+  // Ensure the resolved path is within the sandbox home. isPathInside uses
+  // path.relative, so it is separator-correct on Windows and cannot be
+  // bypassed by a sibling directory sharing the same prefix.
+  if (!isPathInside(resolved, sandboxHome)) {
     return {
-      error: `Blocked: write_file path "${filePath}" resolves to "${resolved}" which is outside the allowed directory (${SANDBOX_HOME}). Writes are confined to the sandbox home.`,
+      error: `Blocked: write_file path "${filePath}" resolves to "${resolved}" which is outside the allowed directory (${sandboxHome}). Writes are confined to the sandbox home.`,
     };
   }
   return resolved;

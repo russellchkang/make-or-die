@@ -7,6 +7,7 @@
  * Phase 2.1: Soul System Redesign
  */
 
+import { getHomeDir } from "../paths.js";
 import fs from "fs";
 import path from "path";
 import type BetterSqlite3 from "better-sqlite3";
@@ -37,7 +38,7 @@ export async function updateSoul(
   soulPath?: string,
 ): Promise<UpdateSoulResult> {
   try {
-    const home = process.env.HOME || "/root";
+    const home = getHomeDir();
     const resolvedPath = soulPath || path.join(home, ".automaton", "SOUL.md");
 
     // Load current soul or create default

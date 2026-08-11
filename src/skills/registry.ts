@@ -10,6 +10,7 @@
  * Directory operations use fs.* to avoid shell interpolation entirely.
  */
 
+import { getHomeDir } from "../paths.js";
 import { execFileSync } from "child_process";
 import fs from "fs";
 import path from "path";
@@ -225,7 +226,7 @@ export function listSkills(db: AutomatonDatabase): Skill[] {
 
 function resolveHome(p: string): string {
   if (p.startsWith("~")) {
-    return path.join(process.env.HOME || "/root", p.slice(1));
+    return path.join(getHomeDir(), p.slice(1));
   }
   return p;
 }

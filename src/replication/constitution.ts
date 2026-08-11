@@ -5,6 +5,7 @@
  * Uses SHA-256 hash verification instead of superficial chmod 444.
  */
 
+import { getHomeDir } from "../paths.js";
 import fs from "fs";
 import pathLib from "path";
 import { createHash } from "crypto";
@@ -28,7 +29,7 @@ export async function propagateConstitution(
   db: DatabaseType,
 ): Promise<void> {
   const constitutionPath = pathLib.join(
-    process.env.HOME || "/root",
+    getHomeDir(),
     ".automaton",
     "constitution.md",
   );

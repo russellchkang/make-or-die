@@ -292,8 +292,12 @@ describe("orchestration/LocalWorkerPool harness integration", () => {
       maxRetries: 0,
     });
 
+    // AUTOMATON_HOME outranks HOME (see src/paths.ts) and the global test
+    // setup pins it, so override that one to redirect this test's workspace.
     const originalHome = process.env.HOME;
+    const originalAutomatonHome = process.env.AUTOMATON_HOME;
     process.env.HOME = tempHome;
+    process.env.AUTOMATON_HOME = tempHome;
     try {
       const pool = new LocalWorkerPool({
         db,
@@ -308,6 +312,8 @@ describe("orchestration/LocalWorkerPool harness integration", () => {
       await (pool as any).runWorker("worker-test", task, new AbortController().signal);
     } finally {
       process.env.HOME = originalHome;
+      if (originalAutomatonHome === undefined) delete process.env.AUTOMATON_HOME;
+      else process.env.AUTOMATON_HOME = originalAutomatonHome;
     }
 
     const row = getTaskById(db, task.id);

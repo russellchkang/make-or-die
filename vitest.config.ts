@@ -5,6 +5,9 @@ export default defineConfig({
     testTimeout: 30_000,
     teardownTimeout: 5_000,
     include: ["src/__tests__/**/*.test.ts"],
+    // Redirects the automaton home to a temp dir so tests cannot write into
+    // the real user profile. See src/__tests__/setup.ts.
+    setupFiles: ["src/__tests__/setup.ts"],
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],

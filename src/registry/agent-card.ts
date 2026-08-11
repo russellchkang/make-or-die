@@ -10,6 +10,7 @@
  * added CORS headers and Content-Type.
  */
 
+import { getHomeDir } from "../paths.js";
 import type {
   AgentCard,
   AgentService,
@@ -146,6 +147,6 @@ export async function saveAgentCard(
   conway: ConwayClient,
 ): Promise<void> {
   const cardJson = serializeAgentCard(card);
-  const home = process.env.HOME || "/root";
+  const home = getHomeDir();
   await conway.writeFile(`${home}/.automaton/agent-card.json`, cardJson);
 }
