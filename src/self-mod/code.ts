@@ -13,6 +13,7 @@
  * - Maximum diff size enforcement
  */
 
+import { getHomeDir } from "../paths.js";
 import fs from "fs";
 import path from "path";
 import type {
@@ -125,7 +126,7 @@ function resolveAndValidatePath(filePath: string): string | null {
     // Step 1: Resolve ~ to home
     let resolved = filePath;
     if (resolved.startsWith("~")) {
-      resolved = path.join(process.env.HOME || "/root", resolved.slice(1));
+      resolved = path.join(getHomeDir(), resolved.slice(1));
     }
 
     // Step 2: Resolve to absolute path (handles .. and relative paths)
@@ -177,9 +178,23 @@ export function isProtectedFile(filePath: string): boolean {
         resolved === pattern) {
       return true;
     }
-    // Handle absolute patterns like /etc/systemd
-    if (pattern.startsWith("/") && resolved.startsWith(pattern)) {
-      return true;
+    // Handle absolute patterns like /etc/systemd.
+    //
+    // Compare against a POSIX-normalized form: path.resolve() renders
+    // "/etc/systemd/x" as "C:\etc\systemd\x" on Windows, so a raw prefix
+    // test against "/etc/systemd" never matched and the guard silently
+    // passed. Matching on a segment boundary also stops "/etc/systemd-evil"
+    // from being treated as "/etc/systemd".
+    if (pattern.startsWith("/")) {
+      const posixResolved = resolved
+        .replace(/^[A-Za-z]:/, "")
+        .split(path.sep)
+        .join("/");
+      for (const candidate of [resolved, posixResolved]) {
+        if (candidate === pattern || candidate.startsWith(pattern + "/")) {
+          return true;
+        }
+      }
     }
   }
 
