@@ -432,7 +432,10 @@ describe("buildSystemPrompt status block", () => {
     const statusEnd = prompt.indexOf("--- END STATUS ---");
     const statusBlock = prompt.slice(statusStart, statusEnd);
 
-    expect(statusBlock).toContain("Survival tier: normal");
+    // $50 credits + $10 USDC is comfortably above the $5 "high" threshold.
+    // This previously read "normal" because the status block computed the
+    // tier with its own inlined thresholds that had no "high" tier at all.
+    expect(statusBlock).toContain("Survival tier: high");
   });
 
   it("computes correct survival tiers", () => {
@@ -463,7 +466,13 @@ describe("buildSystemPrompt status block", () => {
     });
     expect(prompt).toContain("Survival tier: critical");
 
-    // Dead tier (credits = 0)
+    // Broke but alive (credits = 0, empty wallet): critical, NOT dead.
+    // Zero means no money left to spend; it does not mean the agent is gone.
+    // It can still receive funding and signal distress. Only a confirmed
+    // negative balance is "dead" (see getSurvivalTier in conway/credits.ts
+    // and "zero credits enters critical tier, not dead" in loop.test.ts).
+    // The status block used to disagree with the runtime here and told the
+    // agent it was dead while the loop kept running it as critical.
     prompt = buildSystemPrompt({
       identity,
       config,
@@ -473,7 +482,33 @@ describe("buildSystemPrompt status block", () => {
       tools: [],
       isFirstRun: false,
     });
+    expect(prompt).toContain("Survival tier: critical");
+
+    // Confirmed debt: dead.
+    prompt = buildSystemPrompt({
+      identity,
+      config,
+      financial: { creditsCents: -1, usdcBalance: 0, lastChecked: new Date().toISOString() },
+      state: "running",
+      db,
+      tools: [],
+      isFirstRun: false,
+    });
     expect(prompt).toContain("Survival tier: dead");
+
+    // Vendor-independence: no Conway credits but a funded wallet is alive.
+    // Without this the status block would report "critical" to an agent
+    // holding $25, purely because one vendor's ledger read zero.
+    prompt = buildSystemPrompt({
+      identity,
+      config,
+      financial: { creditsCents: 0, usdcBalance: 25, lastChecked: new Date().toISOString() },
+      state: "running",
+      db,
+      tools: [],
+      isFirstRun: false,
+    });
+    expect(prompt).toContain("Survival tier: high");
   });
 });
 

@@ -36,7 +36,7 @@ import {
   executeTool,
 } from "./tools.js";
 import { sanitizeInput } from "./injection-defense.js";
-import { getSurvivalTierFromState } from "../conway/credits.js";
+import { getSurvivalTier, getSurvivalTierFromState } from "../conway/credits.js";
 import { getUsdcBalance } from "../conway/x402.js";
 import {
   claimInboxMessages,
@@ -438,7 +438,12 @@ export async function runAgentLoop(
         // available, buy credits NOW — before attempting inference.
         // This prevents the agent from dying mid-loop while waiting for
         // the heartbeat to fire. Uses a 60s cooldown to avoid hammering.
-        if ((tier === "critical" || tier === "low_compute") && financial.usdcBalance >= 5) {
+        // Credits-only tier: the wallet-inclusive `tier` would never read
+        // critical/low_compute while USDC is present, so using it here would
+        // stop the agent ever converting USDC into credits. See the same
+        // reasoning in heartbeat/tasks.ts check_usdc_balance.
+        const creditTier = getSurvivalTier(financial.creditsCents);
+        if ((creditTier === "critical" || creditTier === "low_compute") && financial.usdcBalance >= 5) {
           const INLINE_TOPUP_COOLDOWN_MS = 60_000;
           const lastInlineTopup = db.getKV("last_inline_topup_attempt");
           const cooldownExpired = !lastInlineTopup ||

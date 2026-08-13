@@ -30,12 +30,31 @@ export type { TokenBudget };
 export { DEFAULT_TOKEN_BUDGET };
 
 /**
+ * Above this length, skip the BPE tokenizer and use the character heuristic.
+ *
+ * js-tiktoken degrades quadratically on long runs without whitespace, because
+ * the whole run becomes one pre-token and the BPE merge loop rescans it:
+ * 1k chars ~0.16s, 5k ~1.9s, 20k ~33s, 50k ~200s. countTokens is synchronous,
+ * so a single large tool result (a base64 blob, minified JS, a long log line)
+ * would block the event loop for minutes and stall the whole agent.
+ *
+ * Exact counts do not matter at this size: anything this large is getting
+ * truncated or summarized by the budget logic anyway, and the heuristic is
+ * already the conservative floor used elsewhere in this function.
+ */
+const TOKENIZER_MAX_CHARS = 8_000;
+
+/**
  * Estimate token count from text length.
  * Conservative estimate: ~4 characters per token for English text.
  */
 export function estimateTokens(text: string): number {
   const content = text ?? "";
   const legacyEstimate = Math.ceil(content.length / 4);
+  // Guard against pathological tokenizer input (see TOKENIZER_MAX_CHARS).
+  if (content.length > TOKENIZER_MAX_CHARS) {
+    return legacyEstimate;
+  }
   try {
     if (!tokenCounter) {
       tokenCounter = createTokenCounter();

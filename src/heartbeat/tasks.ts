@@ -175,7 +175,14 @@ export const BUILTIN_TASKS: Record<string, HeartbeatTaskFn> = {
     }));
 
     const MIN_TOPUP_USD = 5;
-    if (balance >= MIN_TOPUP_USD && (ctx.survivalTier === "critical" || ctx.survivalTier === "dead")) {
+    // Deliberately keys off CREDITS ALONE, not ctx.survivalTier. The survival
+    // tier counts wallet USDC (so a funded agent is not "dying"), but that
+    // makes it useless as a topup trigger: holding USDC would lift the tier
+    // out of critical and the agent would sit on its money, never converting
+    // it, until it could no longer pay for inference. "Credits are low and I
+    // have USDC" is the correct condition.
+    const creditTier = getSurvivalTier(credits);
+    if (balance >= MIN_TOPUP_USD && (creditTier === "critical" || creditTier === "dead")) {
       // Cooldown: don't attempt more than once every 5 minutes to avoid
       // hammering the payment endpoint on repeated ticks.
       const AUTO_TOPUP_COOLDOWN_MS = 5 * 60 * 1000;

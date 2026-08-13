@@ -65,6 +65,37 @@ describe("survival: tier no longer Conway-locked", () => {
   });
 });
 
+describe("topup trigger must not be blocked by a funded wallet", () => {
+  // Regression: counting USDC in the survival tier lifts a credit-broke agent
+  // out of "critical". Anything that keys a topup decision off the survival
+  // tier therefore stops firing exactly when the agent has money to convert,
+  // leaving it holding USDC with zero credits until it cannot pay to think.
+  // Topup decisions must look at credits alone.
+  const CREDITS_EMPTY = 0;
+  const USDC_FUNDED = 10;
+
+  it("wallet-inclusive tier reports healthy while credits are empty", () => {
+    expect(
+      getSurvivalTierFromState({ creditsCents: CREDITS_EMPTY, usdcBalance: USDC_FUNDED }),
+    ).toBe("high");
+  });
+
+  it("credits-only tier still reports critical, which is what topup keys off", () => {
+    expect(getSurvivalTier(CREDITS_EMPTY)).toBe("critical");
+  });
+
+  it("the two tiers disagree precisely when a topup is needed", () => {
+    const combined = getSurvivalTierFromState({
+      creditsCents: CREDITS_EMPTY,
+      usdcBalance: USDC_FUNDED,
+    });
+    const creditsOnly = getSurvivalTier(CREDITS_EMPTY);
+    expect(combined).not.toBe(creditsOnly);
+    // Guards the topup condition in heartbeat/tasks.ts and agent/loop.ts.
+    expect(["critical", "dead"]).toContain(creditsOnly);
+  });
+});
+
 describe("boot gate: provider detection", () => {
   const PROVIDER_ENV = [
     "OPENAI_API_KEY",
