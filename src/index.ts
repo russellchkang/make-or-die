@@ -70,6 +70,9 @@ Environment:
   CONWAY_API_URL           Conway API URL (default: https://api.conway.tech)
   CONWAY_API_KEY           Conway API key (overrides config)
   OLLAMA_BASE_URL          Ollama base URL (overrides config, e.g. http://localhost:11434)
+  INFERENCE_TIMEOUT_MS     Per-request inference timeout (default 60000).
+                           Raise for local models: a small model needs
+                           minutes for this agent's 83-tool schema.
 `);
     process.exit(0);
   }

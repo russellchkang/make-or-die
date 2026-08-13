@@ -16,7 +16,22 @@ import type {
 } from "../types.js";
 import { ResilientHttpClient } from "./http-client.js";
 
-const INFERENCE_TIMEOUT_MS = 60_000;
+/**
+ * Per-request inference timeout.
+ *
+ * 60s is ample for a hosted API, but far too short for local inference: a
+ * small model on consumer hardware needs minutes to process this agent's
+ * ~30KB / 83-tool schema (measured: qwen3:8b ~300s, llama3.2:3b ~130s for a
+ * single turn). At the default every local turn aborts mid-flight, which
+ * looks exactly like the agent hanging after one turn.
+ *
+ * Override with INFERENCE_TIMEOUT_MS when running against Ollama or any
+ * other slow/self-hosted endpoint.
+ */
+const INFERENCE_TIMEOUT_MS = (() => {
+  const raw = Number(process.env.INFERENCE_TIMEOUT_MS);
+  return Number.isFinite(raw) && raw > 0 ? raw : 60_000;
+})();
 
 interface InferenceClientOptions {
   apiUrl: string;
