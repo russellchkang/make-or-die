@@ -14,25 +14,17 @@ jobs:
       - uses: pnpm/action-setup@v4
       - run: pnpm install --frozen-lockfile
       - run: pnpm run typecheck
+      # The previous steps here tolerated exit 124, because the suite used to
+      # hang after finishing. The cause was a quadratic tokenizer path in
+      # estimateTokens (see src/agent/context.ts); with that fixed the full
+      # suite runs in ~75s and exits cleanly, so a hang is now a real failure
+      # and must not be swallowed.
       - name: Run tests
         timeout-minutes: 10
-        run: |
-          set +e
-          timeout 300 pnpm test
-          RC=$?
-          set -e
-          # Exit code 124 means timeout killed the process (vitest hung after tests completed)
-          if [ $RC -eq 124 ]; then echo "::warning::vitest process hung after tests, killed by timeout"; exit 0; fi
-          exit $RC
+        run: pnpm test
       - name: Run security tests
         timeout-minutes: 10
-        run: |
-          set +e
-          timeout 180 pnpm test -- --testNamePattern "security|injection|policy|financial"
-          RC=$?
-          set -e
-          if [ $RC -eq 124 ]; then echo "::warning::vitest process hung after tests, killed by timeout"; exit 0; fi
-          exit $RC
+        run: pnpm test -- --testNamePattern "security|injection|policy|financial"
 
   security-audit:
     runs-on: ubuntu-latest
