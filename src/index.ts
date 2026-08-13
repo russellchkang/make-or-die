@@ -73,6 +73,11 @@ Environment:
   INFERENCE_TIMEOUT_MS     Per-request inference timeout (default 60000).
                            Raise for local models: a small model needs
                            minutes for this agent's 83-tool schema.
+  AUTOMATON_ALLOW_HOST_EXEC=1
+                           Permit shell commands to run on THIS machine when
+                           no Conway sandbox exists. Off by default — without
+                           a sandbox there is no isolation boundary.
+  AUTOMATON_HOME           Override the ~/.automaton state directory.
 `);
     process.exit(0);
   }
@@ -224,6 +229,19 @@ async function run(): Promise<void> {
         "Credits, sandboxes, domains and expose_port are unavailable; " +
         "survival is measured by the wallet's USDC balance.",
     );
+    // No Conway means no sandbox, so exec has no isolation boundary.
+    if (process.env.AUTOMATON_ALLOW_HOST_EXEC === "1") {
+      logger.warn(
+        "AUTOMATON_ALLOW_HOST_EXEC=1: the agent's shell commands will run " +
+          "DIRECTLY ON THIS MACHINE, in your home directory, with no sandbox.",
+      );
+    } else {
+      logger.info(
+        "Shell execution is disabled (no sandbox). The agent can still think, " +
+          "use its wallet, memory and non-shell tools. Set AUTOMATON_ALLOW_HOST_EXEC=1 " +
+          "to let it run commands on this machine — understand the risk first.",
+      );
+    }
   }
 
   // Initialize database

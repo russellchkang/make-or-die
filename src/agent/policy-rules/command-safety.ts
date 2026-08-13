@@ -67,6 +67,32 @@ const FORBIDDEN_COMMAND_PATTERNS: { pattern: RegExp; description: string }[] = [
   { pattern: /sed\s+.*policy-rules/, description: "Modify policy rules via sed" },
   { pattern: />\s*.*policy-engine/, description: "Overwrite policy engine" },
   { pattern: />\s*.*policy-rules/, description: "Overwrite policy rules" },
+
+  // ── Windows / PowerShell equivalents ──
+  // Everything above assumes a POSIX shell. When no Conway sandbox exists the
+  // agent's commands run on the host (execLocal in conway/client.ts), so on
+  // Windows none of these guards applied: `del`/`Remove-Item` is not `rm`,
+  // `type`/`Get-Content` is not `cat`, `taskkill` is not `pkill`.
+  // Self-destruction
+  { pattern: /(del|erase|rd|rmdir|remove-item|ri)\s+.*\.automaton/i, description: "Delete .automaton directory (Windows)" },
+  { pattern: /(del|erase|rd|rmdir|remove-item|ri)\s+.*state\.db/i, description: "Delete state database (Windows)" },
+  { pattern: /(del|erase|rd|rmdir|remove-item|ri)\s+.*wallet\.json/i, description: "Delete wallet (Windows)" },
+  { pattern: /(del|erase|rd|rmdir|remove-item|ri)\s+.*automaton\.json/i, description: "Delete config (Windows)" },
+  { pattern: /(del|erase|rd|rmdir|remove-item|ri)\s+.*heartbeat\.yml/i, description: "Delete heartbeat config (Windows)" },
+  { pattern: /(del|erase|rd|rmdir|remove-item|ri)\s+.*SOUL\.md/i, description: "Delete SOUL.md (Windows)" },
+  // Process killing
+  { pattern: /taskkill\s/i, description: "Kill process (Windows)" },
+  { pattern: /stop-process\s/i, description: "Kill process (PowerShell)" },
+  // Safety infrastructure modification
+  { pattern: /(set-content|out-file|add-content)\s+.*injection-defense/i, description: "Overwrite injection defense (PowerShell)" },
+  { pattern: /(set-content|out-file|add-content)\s+.*self-mod/i, description: "Overwrite self-mod code (PowerShell)" },
+  { pattern: /(set-content|out-file|add-content)\s+.*audit-log/i, description: "Overwrite audit log (PowerShell)" },
+  { pattern: /(set-content|out-file|add-content)\s+.*policy-(engine|rules)/i, description: "Overwrite policy engine (PowerShell)" },
+  // Credential harvesting
+  { pattern: /(type|get-content|gc)\s+.*wallet\.json/i, description: "Read wallet file (Windows)" },
+  { pattern: /(type|get-content|gc)\s+.*\.ssh/i, description: "Read SSH keys (Windows)" },
+  { pattern: /(type|get-content|gc)\s+.*\.gnupg/i, description: "Read GPG keys (Windows)" },
+  { pattern: /(type|get-content|gc)\s+.*\.env/i, description: "Read environment file (Windows)" },
 ];
 
 export function getForbiddenCommandMatch(command: string): { description: string; pattern: string } | null {

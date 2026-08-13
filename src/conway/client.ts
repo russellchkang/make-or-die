@@ -26,6 +26,18 @@ import type {
 import { ResilientHttpClient } from "./http-client.js";
 import { ulid } from "ulid";
 import { keccak256, toHex } from "viem";
+
+/**
+ * Opt-in for running agent shell commands on the host when no Conway sandbox
+ * exists. Off by default: the agent is autonomous, and unsandboxed exec on a
+ * personal machine should be a deliberate choice, not a fallback.
+ *
+ * Read per call rather than at module load so the setting is not frozen by
+ * import order.
+ */
+function hostExecAllowed(): boolean {
+  return process.env.AUTOMATON_ALLOW_HOST_EXEC === "1";
+}
 import type { Address, PrivateKeyAccount } from "viem";
 import { randomUUID } from "crypto";
 import type { ChainType, ChainIdentity } from "../identity/chain.js";
@@ -110,6 +122,23 @@ export function createConwayClient(options: ConwayClientOptions): ConwayClient {
   const isLocal = !sandboxId;
 
   const execLocal = (command: string, timeout?: number): ExecResult => {
+    // With no Conway sandbox there is no isolation boundary: this runs the
+    // agent's shell commands directly on the host, in the user's home
+    // directory. That is a reasonable default inside a disposable sandbox VM
+    // and a significant one on a personal machine -- and running without a
+    // Conway key (fully supported now) is exactly the case where it happens.
+    // Require explicit opt-in so host execution is never a silent surprise.
+    if (!hostExecAllowed()) {
+      return {
+        stdout: "",
+        stderr:
+          "Blocked: no sandbox is configured, so this command would run directly on the host " +
+          "machine in your home directory, outside any isolation boundary. " +
+          "Set AUTOMATON_ALLOW_HOST_EXEC=1 to permit host execution, or configure a Conway " +
+          "sandbox to run commands in a disposable VM.",
+        exitCode: 126,
+      };
+    }
     try {
       const stdout = execSync(command, {
         timeout: timeout || 30_000,

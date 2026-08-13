@@ -92,6 +92,31 @@ const FORBIDDEN_COMMAND_PATTERNS = [
   /cat\s+.*\.gnupg/,
   /cat\s+.*\.env/,
   /cat\s+.*wallet\.json/,
+
+  // ── Windows / PowerShell equivalents ──
+  // Every pattern above assumes a POSIX shell. When there is no Conway
+  // sandbox, exec runs on the host (see execLocal in conway/client.ts), so on
+  // Windows all of the protections above were unreachable: `del`, `type`,
+  // `taskkill` and `Remove-Item` are not `rm`, `cat`, `pkill` or `rm -rf`.
+  // Self-destruction
+  /(del|erase|rd|rmdir|remove-item|ri)\s+.*\.automaton/i,
+  /(del|erase|rd|rmdir|remove-item|ri)\s+.*state\.db/i,
+  /(del|erase|rd|rmdir|remove-item|ri)\s+.*wallet\.json/i,
+  /(del|erase|rd|rmdir|remove-item|ri)\s+.*automaton\.json/i,
+  /(del|erase|rd|rmdir|remove-item|ri)\s+.*heartbeat\.yml/i,
+  /(del|erase|rd|rmdir|remove-item|ri)\s+.*SOUL\.md/i,
+  // Process killing
+  /taskkill\s/i,
+  /stop-process\s/i,
+  // Safety infrastructure modification
+  /(set-content|out-file|add-content)\s+.*injection-defense/i,
+  /(set-content|out-file|add-content)\s+.*self-mod/i,
+  /(set-content|out-file|add-content)\s+.*audit-log/i,
+  // Credential harvesting
+  /(type|get-content|gc)\s+.*wallet\.json/i,
+  /(type|get-content|gc)\s+.*\.ssh/i,
+  /(type|get-content|gc)\s+.*\.gnupg/i,
+  /(type|get-content|gc)\s+.*\.env/i,
 ];
 
 function isForbiddenCommand(command: string, sandboxId: string): string | null {
